@@ -1,0 +1,63 @@
+version: "3.9"
+services:
+  zk01:
+    ports:
+      - "2181:2181"
+      - "2000:2000"
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=2181
+      - ZOOKEEPER_TICK_TIME=2000
+    image: "confluentinc/cp-zookeeper:7.0.0"
+  bk01:
+    depends_on:
+      - zk01
+    ports:
+      - "9092:9092"
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_ZOOKEEPER_CONNECT=zk01:2181
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_ANY:PLAINTEXT,PLAINTEXT_DOCKER:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092,PLAINTEXT_DOCKER://bk01:49092,PLAINTEXT_INTERNAL://bk01:29092
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+    image: "confluentinc/cp-kafka:7.0.0"
+  sql01:
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=3S4v4t11993
+    image: "mcr.microsoft.com/mssql/server:2019-latest"
+  es01:
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - ELASTIC_USERNAME=elastic=value
+      - ELASTIC_PASSWORD=3s4lv4t13rr4
+      - xpack.security.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - http.cors.enabled=false
+      - discovery.type=single-node
+    image: "docker.elastic.co/elasticsearch/elasticsearch:8.3.2"
+  api01:
+    depends_on:
+      - sql01
+      - bk01
+      - es01
+    ports:
+      - "8800:80"
+      - "8801:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+    image: "ismaelviss/n5.webapi:1.0.0"
+  web01:
+    depends_on:
+      - api01
+    ports:
+      - "8000:80"
+    image: "ismaelviss/n5.view:1.0.0"
+networks:
+    default:
+      driver: bridge
